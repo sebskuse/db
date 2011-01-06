@@ -1,23 +1,23 @@
 <?php
-//////////////////////////////////////////////////////
-// (c) Seb Skuse (seb@skuse-consulting.co.uk)	   	//
-// A Class for abstracting MySQLi database		  	//
-// functions to allow queueing and other functions. //
-// Secures input from user input.				   	//
-//													//
-// Modified 2009 by Russell Newman to implement	 	//
-// singleton pattern, with code from www.php.net	//
-// and extensions to mysqli transactioning      	//
-//													//
-// Modified 2010 by Phillip Whittlesea to 			//
-// implement the selection of multiple tables		//
-// in select statement								//
-//													//
-// 									   				//
-// 									   				//
-// (2011-01-06)						   				//
-//////////////////////////////////////////////////////
-
+/*!
+ * PHP MySQL abstraction class 
+ *
+ * Copyright (c) 2011 Seb Skuse (seb@skuse-consulting.co.uk)
+ * All rights reserved.
+ * Modifications made by Russell Newman & Phillip Whittlesea
+ *
+ * http://www.devx.co.uk/
+ * https://github.com/sebskuse/db
+ *
+ * Licensed under the BSD Licence.
+ * 
+ * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+ * 
+ * Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+ * Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+ * Neither the name of Skuse Consulting Limited nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 
 class db extends mysqli {
 	
