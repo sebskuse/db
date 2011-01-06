@@ -1,11 +1,9 @@
 <?php
 //////////////////////////////////////////////////////
 // (c) Seb Skuse (seb@skuse-consulting.co.uk)	   	//
-//				ss1706@ecs.soton.ac.uk				//
 // A Class for abstracting MySQLi database		  	//
 // functions to allow queueing and other functions. //
-// Secures input from all user input.			   	//
-// CV: 1.30 (2010-12-14)						   	//
+// Secures input from user input.				   	//
 //													//
 // Modified 2009 by Russell Newman to implement	 	//
 // singleton pattern, with code from www.php.net	//
@@ -15,6 +13,9 @@
 // implement the selection of multiple tables		//
 // in select statement								//
 //													//
+// 									   				//
+// 									   				//
+// (2011-01-06)						   				//
 //////////////////////////////////////////////////////
 
 
@@ -36,7 +37,7 @@ class db extends mysqli {
 	
 	// A private constructor; prevents direct creation of object
 	private function __construct($server = null, $username = null, $password = null, $schema = null){
-		$defaults = array("server" => DB_SERVER, "username" => DB_SERVER_USERNAME, "password" => DB_SERVER_PASSWORD, "schema" => DB_DATABASE);
+		$defaults = array("server" => "localhost", "username" => "root", "password" => "", "schema" => "");
 		
 		$settings = array("server" => $server, "username" => $username, "password" => $password, "schema" => $schema);
 		
@@ -133,9 +134,16 @@ class db extends mysqli {
 			// For each of the conditions write them into the SQL variable.
 			$i = 0;
 			foreach($conditions as $value){
+
+				if(strtoupper($value[0]) == "CUSTOM"){
+					$out .= $value[1];
+					continue;	
+				}
+			
 				if($i != 0){
 					$out .= $value[0] . " ";
 				}
+				
 				$out .=  $value[1] . " ". $value[2] . " '" . $this->real_escape_string($value[3]) . "' ";
 				$i++;
 			}
@@ -147,6 +155,7 @@ class db extends mysqli {
 		// Push the query to the class array queries.
 		array_push($this->queries, $out);
 		$this->currentQuery = $out;
+		
 		return $this;
 	}
 	
@@ -199,6 +208,7 @@ class db extends mysqli {
 		// Push the query to the class array queries.
 		array_push($this->queries, $out);
 		$this->currentQuery = $out;
+		
 		return $this;
 	}
 
@@ -238,6 +248,7 @@ class db extends mysqli {
 		// Push the query to the class array queries.
 		array_push($this->queries, $out);
 		$this->currentQuery = $out;
+		
 		return $this;
 	}
 
@@ -267,17 +278,16 @@ class db extends mysqli {
 		$out = rtrim($out, " ") . " " . $additionals . ";";
 		// Push the query to the class array queries.
 		array_push($this->queries, $out);
-		// Added by Phillip Whittlesea
+		
 		$this->currentQuery = $out;
 		return $this;
 	}
 		
-	
+
 	public function single($query){
 		$res = parent::query($query);
-		if(mysqli_error($this)){ 
-			  throw new exception(mysqli_error($this), mysqli_errno($this)); 
-		} 
+		
+		if($this->error) throw new exception($this->error, $this->errno); 
 
 		$x = 0;
 		$out = array();
@@ -292,6 +302,7 @@ class db extends mysqli {
 		return $out;
 	}
 	
+	// Add raw SQL to the query queue.
 	public function queuedQuery($query) {
 		array_push($this->queries, $query);
 		return $query;
@@ -307,13 +318,11 @@ class db extends mysqli {
 		parent::ping();
 		// For each query...
 		foreach($this->queries as $query){
-			//echo $query."<br />";
 			// Run the query.
 			// echo $query;
 			$res = parent::query($query, MYSQLI_USE_RESULT);
-			if(mysqli_error($this)){ 
-				  throw new exception(mysqli_error($this), mysqli_errno($this)); 
-			} 
+			
+			if($this->error) throw new exception($this->error, $this->errno); 
 
 			$x = 0;
 			// Append the results into a 3d array in $out.
