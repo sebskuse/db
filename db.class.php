@@ -22,15 +22,20 @@ class db extends mysqli {
 	
 	// Holds an instance of the class
 	private static $instance;
-	private static $version = 1.3;
 	
 	public $queries = array();
-	protected $numQueries = 0;
-	public $database;
+	private $numQueries = 0;
+	private $database;
 	public $currentQuery;
 	
+	const VERSION = 1.4;
+	
+	const ERR_UNAVAILABLE = 6001;
+	const ERR_CONNECT_ERROR = 6002;
+	const ERR_CLONE = 6003;
+	
 	// A private constructor; prevents direct creation of object
-	public function __construct($server = null, $username = null, $password = null, $schema = null){
+	private function __construct($server = null, $username = null, $password = null, $schema = null){
 		$defaults = array("server" => DB_SERVER, "username" => DB_SERVER_USERNAME, "password" => DB_SERVER_PASSWORD, "schema" => DB_DATABASE);
 		
 		$settings = array("server" => $server, "username" => $username, "password" => $password, "schema" => $schema);
@@ -41,8 +46,8 @@ class db extends mysqli {
 		
 		// Prevents mysql sock warnings. I prefer to throw exception as below.
 		@parent::__construct($settings['server'], $settings['username'], $settings['password'], $settings['schema']);
-		if (mysqli_connect_error()) throw new Exception('Connect Error (' . mysqli_connect_errno() . ') '. mysqli_connect_error());
-		if(!@parent::ping()) throw new Exception("Database server unavailable", 512);
+		if ($this->connect_error) throw new Exception('Connect Error (' . $this->connect_errno . ') '. $this->connect_error, ERR_CONNECT_ERROR);
+		if(!@parent::ping()) throw new Exception("Database server unavailable", db::ERR_UNAVAILABLE);
 	}
 	
 	public static function singleton($server = null, $username = null, $password = null, $schema = null) {
@@ -55,7 +60,7 @@ class db extends mysqli {
 	
 	// Prevent users to clone the instance
 	public function __clone() {
-		trigger_error('Clone is not allowed.', E_USER_ERROR);
+		throw new Exception('Clone is not allowed.', ERR_CLONE);
 	}
 	
 	public function startTransaction() {
