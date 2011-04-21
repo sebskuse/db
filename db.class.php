@@ -36,17 +36,12 @@ class db extends mysqli {
 	const ERR_CLONE = 6003;
 	
 	// A private constructor; prevents direct creation of object
-	private function __construct($server = null, $username = null, $password = null, $schema = null){
-		$defaults = array("server" => "localhost", "username" => "", "password" => "", "schema" => "");
-		
-		$settings = array("server" => $server, "username" => $username, "password" => $password, "schema" => $schema);
-		
-		foreach($settings as $key => $value) if($value == null) $settings[$key] = $defaults[$key];
-		
-		$this->database = $settings['schema'];
+	// A private constructor; prevents direct creation of object
+	private function __construct($server = "localhost", $username = "", $password = "", $schema = ""){
+		$this->database = $schema;
 		
 		// Prevents mysql sock warnings. I prefer to throw exception as below.
-		@parent::__construct($settings['server'], $settings['username'], $settings['password'], $settings['schema']);
+		@parent::__construct($server, $username, $password, $schema);
 		if ($this->connect_error) throw new Exception("Connect Error ({$this->connect_errno}) {$this->connect_error}", self::ERR_CONNECT_ERROR);
 		if(!@parent::ping()) throw new Exception("Database server unavailable", self::ERR_UNAVAILABLE);
 	}
@@ -59,7 +54,7 @@ class db extends mysqli {
 		return self::$instance;
 	}
 	
-	// Prevent users to clone the instance
+	// Prevent users from cloning this instance
 	public function __clone() {
 		throw new Exception('Clone is not allowed.', self::ERR_CLONE);
 	}
@@ -108,27 +103,26 @@ class db extends mysqli {
 		$tablesList = "";
 		$conditionsList = "";
 		
-		// For each of the fields add them in here after the SELECT statement.
-		foreach($fields as $i => $field){
-			$fieldsList .= ($i == 0) ? $this->real_escape_string($field) : ", ".$this->real_escape_string($field);
+		// Populate the list of fields
+		foreach($fields as $i => $field) {
+			$field = $this->real_escape_string($field);
+			$fieldsList .= ($i == 0) ? $field : ", {$field}";
 		}
 		
-		// Remove trailing comma, then add the source database to the SQL statement.
-		/*
-		 * Addition of the possiblity of multiple table selection added by Phillip Whittlesea on 21/12/2010
-		 * If function is passed an array in $table all tables will be added to SELECT statement
-		*/
-		
+		// Addition of the possiblity of multiple table selection by Phillip Whittlesea on 21/12/2010
+		// If function is passed an array in $table all tables will be added to SELECT statement
 		if(is_array($table)){
 			foreach($table as $i => $tbl) $tablesList .= ($i == 0) ? "`{$this->database}`.`{$tbl}`" : ", `{$this->database}`.`{$tbl}`";
 		} else {
 			$tablesList .= "`{$this->database}`.`{$table}`";
 		}
+		
+		// Populate the list of conditions
 		if(!empty($conditions)){
 			$conditionsList .= "WHERE ";
 			// For each of the conditions write them into the SQL variable.
 			foreach($conditions as $i => $value){
-				// RN: This is not documented. Appears to let you write a WHERE in plaintext
+				// SEB: This is not documented. Appears to let you write a WHERE in plaintext
 				if(strtoupper($value[0]) == "CUSTOM"){
 					$conditionsList .= $value[1];
 					continue;
@@ -151,11 +145,9 @@ class db extends mysqli {
 	// Converts WHERE array to regular SQL
 	public function convertWhereArrayToSql($where) {
 		$out = "";
-		//$i = 0;
 		foreach($where as $i => $value) {
 			if($i != 0) $out .= $value[0] . " ";
 			$out .=  $value[1] . " ". $value[2] . " '" . $this->real_escape_string($value[3]) . "' ";
-			//$i++;
 		}
 		return $out;
 	}
@@ -215,11 +207,10 @@ class db extends mysqli {
 		$conditionsList = "";
 		
 		// For each update field output to the string in the format $key = '$data',. This will allow multiple fields to be updated.
-		$firstField = true;
+		$comma = "";
 		foreach($fields as $field => $value) {
-			if(!$firstField) $fieldsList .= ", ";
-			$fieldsList .= "$field = '{$this->real_escape_string($value)}'";
-			$firstField = false;
+			$fieldsList .= "{$comma}{$field} = '{$this->real_escape_string($value)}'";
+			$comma = ", ";
 		}
 
 		// Append all of the conditional fields to the end of the statement that the user has added.
