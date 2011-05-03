@@ -6,7 +6,7 @@
  * All rights reserved.
  * Modifications made by Russell Newman & Phillip Whittlesea
  *
- * http://www.devx.co.uk/
+ * http://seb.skus.es/
  * https://github.com/sebskuse/db
  *
  * Licensed under the BSD Licence.
@@ -35,7 +35,6 @@ class db extends mysqli {
 	const ERR_CONNECT_ERROR = 6002;
 	const ERR_CLONE = 6003;
 	
-	// A private constructor; prevents direct creation of object
 	// A private constructor; prevents direct creation of object
 	private function __construct($server = "localhost", $username = "", $password = "", $schema = ""){
 		$this->database = $schema;
@@ -136,8 +135,10 @@ class db extends mysqli {
 		}
 		
 		// Push the query to the class array queries.
-		$this->queries[] = "SELECT {$fieldsList} FROM {$tablesList} {$conditionsList} {$additionals}";
-		$this->currentQuery = $out;
+		$currentQuery = "SELECT {$fieldsList} FROM {$tablesList} {$conditionsList} {$additionals}";
+		
+		$this->queries[] = $currentQuery;
+		$this->currentQuery = $currentQuery;
 		
 		return $this;
 	}
