@@ -27,9 +27,8 @@ class db extends mysqli {
 	public $queries = array();
 	private $numQueries = 0;
 	private $database;
-	public $currentQuery;
 	
-	const VERSION = 1.4;
+	const VERSION = 1.5;
 	
 	const ERR_UNAVAILABLE = 6001;
 	const ERR_CONNECT_ERROR = 6002;
@@ -77,7 +76,7 @@ class db extends mysqli {
 	}
 	
 	public function getSQL(){
-		return $this->currentQuery;
+		return end($this->queries);
 	}
 	
 	public function run(){
@@ -102,9 +101,11 @@ class db extends mysqli {
 		$tablesList = "";
 		$conditionsList = "";
 		
+		array_walk_recursive($fields, array($this, "sanitize"));
+		array_walk_recursive($conditions, array($this, "sanitize"));
+		
 		// Populate the list of fields
 		foreach($fields as $i => $field) {
-			$field = $this->real_escape_string($field);
 			$fieldsList .= ($i == 0) ? $field : ", {$field}";
 		}
 		
@@ -129,16 +130,12 @@ class db extends mysqli {
 			
 				if($i != 0) $conditionsList .= $value[0] . " ";
 				
-				// TODO: Should the two ' characters be `?
-				$conditionsList .=  $value[1] . " ". $value[2] . " '" . $this->real_escape_string($value[3]) . "' ";
+				$conditionsList .= "{$value[1]} {$value[2]} '{$value[3]}' ";
 			}
 		}
 		
 		// Push the query to the class array queries.
-		$currentQuery = "SELECT {$fieldsList} FROM {$tablesList} {$conditionsList} {$additionals}";
-		
-		$this->queries[] = $currentQuery;
-		$this->currentQuery = $currentQuery;
+		$this->queries[] = "SELECT {$fieldsList} FROM {$tablesList} {$conditionsList} {$additionals}";
 		
 		return $this;
 	}
@@ -168,13 +165,11 @@ class db extends mysqli {
 		$fieldsList = "";
 		$valuesList = "";
 		
+		array_walk_recursive($fields, array($this, "sanitize"));
+		
 		// Let's build the fields and values parts. "comma" is used to add commas where necessary
 		$comma = "";
 		foreach($fields as $field => $data) {
-			// Sanitise, sanitise, sanitise
-			$field = $this->real_escape_string($field);
-			$data = $this->real_escape_string($data);
-			
 			// Append to the list of fields
 			$fieldsList .= "{$comma}`{$field}`";
 			
@@ -186,10 +181,7 @@ class db extends mysqli {
 		}
 		
 		// Format query, append additionals and push to query list
-		$currentQuery = "INSERT INTO `{$this->database}`.`{$table}` ({$fieldsList}) VALUES ({$valuesList}) {$additionals};";
-		
-		$this->queries[] = $currentQuery;
-		$this->currentQuery = $currentQuery;
+		$this->queries[] = "INSERT INTO `{$this->database}`.`{$table}` ({$fieldsList}) VALUES ({$valuesList}) {$additionals};";
 		
 		return $this;
 	}
@@ -209,10 +201,12 @@ class db extends mysqli {
 		$fieldsList = "";
 		$conditionsList = "";
 		
+		array_walk_recursive($fields, array($this, "sanitize"));
+		
 		// For each update field output to the string in the format $key = '$data',. This will allow multiple fields to be updated.
 		$comma = "";
 		foreach($fields as $field => $value) {
-			$fieldsList .= "{$comma}{$field} = '{$this->real_escape_string($value)}'";
+			$fieldsList .= "{$comma}{$field} = '{$value}'";
 			$comma = ", ";
 		}
 
@@ -220,16 +214,14 @@ class db extends mysqli {
 		foreach($conditions as $i => $value){
 			if($i != 0) $conditionsList .= " {$value[0]}";
 			// TODO: ARG! This 'conditions' arr doesn't appear to contain the operator, unlike in INSERT. This assumes the op is always '='
-			$conditionsList .= " {$value[1]} = '{$this->real_escape_string($value[2])}'";
+			$conditionsList .= " {$value[1]} = '{$value[2]}'";
 		}
 		
 		// Format query, append additionals and push to query list
 		// TODO: Could use the queuedQuery method to do this, but need to write the currentQuery storer into that function.
 		// Also, what is currentQuery, and why isn't it a fuction? It seems to ALWAYS be the last item in $this->queries...
-		$currentQuery = "UPDATE `{$this->database}`.`{$table}` SET {$fieldsList} WHERE {$conditionsList} {$additionals};";
 		
-		$this->queries[] = $currentQuery;
-		$this->currentQuery = $currentQuery;
+		$this->queries[] = "UPDATE `{$this->database}`.`{$table}` SET {$fieldsList} WHERE {$conditionsList} {$additionals};";
 		
 		return $this;
 	}
@@ -248,19 +240,19 @@ class db extends mysqli {
 		// SEB: Is this a good idea or not? Nice safety net, but is it really practical?
 		if(empty($conditions)) throw new Exception("No conditions were specified for the delete operation");
 		
+		array_walk_recursive($conditions, array($this, "sanitize"));
+		
 		$conditionsList = "";
 		
 		// For each of the conditional conditions that the user has entered append them to the SQL string.
 		foreach($conditions as $i => $value){
 			if($i != 0) $conditionsList .= " {$value[0]}";
-			$conditionsList .= " {$value[1]} = '{$this->real_escape_string($value[2])}'";
+			$conditionsList .= " {$value[1]} = '{$value[2]}'";
 		}
 		
 		// Push the query to the class array queries.
-		$currentQuery = "DELETE FROM `{$this->database}`.`{$table}` WHERE {$conditionsList} {$additionals};";
 		
-		$this->queries[] = $currentQuery;
-		$this->currentQuery = $currentQuery;
+		$this->queries[] = "DELETE FROM `{$this->database}`.`{$table}` WHERE {$conditionsList} {$additionals};";
 		
 		return $this;
 	}
@@ -291,6 +283,11 @@ class db extends mysqli {
 		return $query;
 	}
 	
+	public static function sanitize($value){
+		$db = db::singleton();
+		$value = $db->real_escape_string($value);
+	}
+	
 	public function runBatch(){
 		// SEB: What is going on here? If numQueries is a count of the number of queries, why is it adding to itself? Why isn't it a function?
 		$this->numQueries += count($this->queries);
@@ -305,7 +302,7 @@ class db extends mysqli {
 			if($this->error) throw new exception($this->error, $this->errno); 
 
 			// Append the results into a 3d array in $out.
-			if(is_bool($res) == true) {
+			if(is_bool($res)) {
 				$out[$queryId] = "";
 			} else {
 				while($row = $res->fetch_assoc()) $out[$queryId][] = $row;
