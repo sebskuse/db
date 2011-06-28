@@ -25,7 +25,6 @@ class db extends mysqli {
 	private static $instance;
 	
 	public $queries = array();
-	private $numQueries = 0;
 	private $database;
 	
 	const VERSION = 1.4;
@@ -72,10 +71,6 @@ class db extends mysqli {
 		$this->autocommit(true);
 	}
 	
-	public function queryCount(){
-		return $this->numQueries;
-	}
-	
 	public function getSQL(){
 		return end($this->queries);
 	}
@@ -105,7 +100,7 @@ class db extends mysqli {
 		// Populate the list of fields
 		foreach($fields as $i => $field) {
 			$field = $this->real_escape_string($field);
-			$fieldsList .= ($i == 0) ? $field : ", {$field}";
+			$fieldsList .= ($i == 0) ? "`$field`" : ", `{$field}`";
 		}
 		
 		// Addition of the possiblity of multiple table selection by Phillip Whittlesea on 21/12/2010
@@ -128,28 +123,15 @@ class db extends mysqli {
 				}
 			
 				if($i != 0) $conditionsList .= $value[0] . " ";
-				
-				// TODO: Should the two ' characters be `?
-				$conditionsList .=  $value[1] . " ". $value[2] . " '" . $this->real_escape_string($value[3]) . "' ";
+				$conditionsList .=  "`{$value[1]}` {$value[2]} '{$this->real_escape_string($value[3])}' ";
 			}
 		}
 		
 		// Push the query to the class array queries.
-		$this->queries[] = "SELECT {$fieldsList} FROM {$tablesList} {$conditionsList} {$additionals}";
+		$this->queries[] = "SELECT {$fieldsList} FROM `{$tablesList}` {$conditionsList} {$additionals}";
 		
 		return $this;
 	}
-	
-	// Converts WHERE array to regular SQL
-	public function convertWhereArrayToSql($where) {
-		$out = "";
-		foreach($where as $i => $value) {
-			if($i != 0) $out .= $value[0] . " ";
-			$out .=  $value[1] . " ". $value[2] . " '" . $this->real_escape_string($value[3]) . "' ";
-		}
-		return $out;
-	}
-
 
 	/**
 	 * Example: insert(array("fID"=> "NULL", "uID" => $uID, "fURL"=>$feedURL, "feed_title"=>$image_title, "feed_description"=>$feed_description, "last_refreshed"=>date('l dS F Y h:i A')), "feeds");
@@ -206,7 +188,7 @@ class db extends mysqli {
 		// For each update field output to the string in the format $key = '$data',. This will allow multiple fields to be updated.
 		$comma = "";
 		foreach($fields as $field => $value) {
-			$fieldsList .= "{$comma}{$field} = '{$this->real_escape_string($value)}'";
+			$fieldsList .= "{$comma}`{$field}` = '{$this->real_escape_string($value)}'";
 			$comma = ", ";
 		}
 
@@ -214,11 +196,10 @@ class db extends mysqli {
 		foreach($conditions as $i => $value){
 			if($i != 0) $conditionsList .= " {$value[0]}";
 			// TODO: ARG! This 'conditions' arr doesn't appear to contain the operator, unlike in INSERT. This assumes the op is always '='
-			$conditionsList .= " {$value[1]} = '{$this->real_escape_string($value[2])}'";
+			$conditionsList .= " `{$value[1]}` = '{$this->real_escape_string($value[2])}'";
 		}
 		
 		// Format query, append additionals and push to query list
-		// TODO: Could use the queuedQuery method to do this, but need to write the currentQuery storer into that function.
 		$this->queries[] = "UPDATE `{$this->database}`.`{$table}` SET {$fieldsList} WHERE {$conditionsList} {$additionals};";
 		
 		return $this;
@@ -243,7 +224,7 @@ class db extends mysqli {
 		// For each of the conditional conditions that the user has entered append them to the SQL string.
 		foreach($conditions as $i => $value){
 			if($i != 0) $conditionsList .= " {$value[0]}";
-			$conditionsList .= " {$value[1]} = '{$this->real_escape_string($value[2])}'";
+			$conditionsList .= " `{$value[1]}` = '{$this->real_escape_string($value[2])}'";
 		}
 		
 		// Push the query to the class array queries.
@@ -279,8 +260,6 @@ class db extends mysqli {
 	}
 	
 	public function runBatch(){
-		// SEB: What is going on here? If numQueries is a count of the number of queries, why is it adding to itself? Why isn't it a function?
-		$this->numQueries += count($this->queries);
 		$out = array();
 		// Ping the server and re-establish the connection if it has been dropped.
 		parent::ping();
