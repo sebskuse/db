@@ -25,7 +25,6 @@ class db extends mysqli {
 	private static $instance;
 	
 	public $queries = array();
-	private $numQueries = 0;
 	private $database;
 	
 	const VERSION = 1.5;
@@ -69,10 +68,6 @@ class db extends mysqli {
 	public function rollback() {
 		parent::rollback();
 		$this->autocommit(true);
-	}
-	
-	public function queryCount(){
-		return $this->numQueries;
 	}
 	
 	public function getSQL(){
@@ -135,21 +130,10 @@ class db extends mysqli {
 		}
 		
 		// Push the query to the class array queries.
-		$this->queries[] = "SELECT {$fieldsList} FROM {$tablesList} {$conditionsList} {$additionals}";
+		$this->queries[] = "SELECT {$fieldsList} FROM `{$tablesList}` {$conditionsList} {$additionals}";
 		
 		return $this;
 	}
-	
-	// Converts WHERE array to regular SQL
-	public function convertWhereArrayToSql($where) {
-		$out = "";
-		foreach($where as $i => $value) {
-			if($i != 0) $out .= $value[0] . " ";
-			$out .=  $value[1] . " ". $value[2] . " '" . $this->real_escape_string($value[3]) . "' ";
-		}
-		return $out;
-	}
-
 
 	/**
 	 * Example: insert(array("fID"=> "NULL", "uID" => $uID, "fURL"=>$feedURL, "feed_title"=>$image_title, "feed_description"=>$feed_description, "last_refreshed"=>date('l dS F Y h:i A')), "feeds");
@@ -218,9 +202,6 @@ class db extends mysqli {
 		}
 		
 		// Format query, append additionals and push to query list
-		// TODO: Could use the queuedQuery method to do this, but need to write the currentQuery storer into that function.
-		// Also, what is currentQuery, and why isn't it a fuction? It seems to ALWAYS be the last item in $this->queries...
-		
 		$this->queries[] = "UPDATE `{$this->database}`.`{$table}` SET {$fieldsList} WHERE {$conditionsList} {$additionals};";
 		
 		return $this;
@@ -251,7 +232,6 @@ class db extends mysqli {
 		}
 		
 		// Push the query to the class array queries.
-		
 		$this->queries[] = "DELETE FROM `{$this->database}`.`{$table}` WHERE {$conditionsList} {$additionals};";
 		
 		return $this;
@@ -289,8 +269,6 @@ class db extends mysqli {
 	}
 	
 	public function runBatch(){
-		// SEB: What is going on here? If numQueries is a count of the number of queries, why is it adding to itself? Why isn't it a function?
-		$this->numQueries += count($this->queries);
 		$out = array();
 		// Ping the server and re-establish the connection if it has been dropped.
 		parent::ping();
