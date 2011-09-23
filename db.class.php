@@ -34,14 +34,14 @@ abstract class DBType {
 
 class DBInt extends DBType { 
 	public function __construct($val) { 
-		if(!is_integer($val)) throw new Exception("Value is not an integer!");
+		if(!is_integer($val)) throw new Exception("Value is not an integer!", 9001);
 		$this->val = $val;
 	} 
 }
 
 class DBString extends DBType { 
 	public function __construct($val) { 
-		if(is_string($val)) throw new Exception("Value is not a string!");
+		if(is_string($val)) throw new Exception("Value is not a string!", 9002);
 		$this->val = "'$val'";
 	} 
 }
@@ -50,7 +50,7 @@ class DBFunction extends DBType {
 	public function __construct($val) { 
 		// MySQL function names seem to be between 2 and 15 characters, should be uppercase, and only a few contain numbers.
 		// Also, we are not yet real_escape_string-ing the contents of the function. Or the function name.
-		if(!preg_match("/^[A-Z_0-25]{2,15}\(.*\)$/", $val)) throw new Exception("Value is not a function!");
+		if(!preg_match("/^[A-Z_0-25]{2,15}\(.*\)$/", $val)) throw new Exception("Value is not a function!", 9003);
 		$this->val = $val;
 	} 
 }
@@ -293,7 +293,7 @@ class db extends mysqli {
 	public function delete($table, $conditions = array(), $additionals = ""){
 		
 		// SEB: Is this a good idea or not? Nice safety net, but is it really practical?
-		if(empty($conditions)) throw new Exception("No conditions were specified for the delete operation");
+		if(empty($conditions)) throw new Exception("No conditions were specified for the delete operation", 9004);
 		
 		$conditionsList = "";
 		
@@ -321,13 +321,20 @@ class db extends mysqli {
 	
 	public function single($query){
 		$result = parent::query($query);
-		if($this->error) throw new exception($this->error, $this->errno); 
+		if($this->error) throw new Exception($this->error, $this->errno); 
 
 		$out = array();
 		if(is_bool($result)) {
 				$out[] = "";
 		} else {
-			while($row = $result->fetch_assoc()) $out[] = $row;
+			while($row = $result->fetch_assoc()) {
+				$row = array_map(function($v){ 
+					if(is_numeric($v)) return (int)$v;
+					return $v;
+				}, $row);
+				
+				$out[] = $row;
+			}
 		}
 		return $out;
 	}
@@ -355,7 +362,14 @@ class db extends mysqli {
 			if(is_bool($res) == true) {
 				$out[$queryId] = "";
 			} else {
-				while($row = $res->fetch_assoc()) $out[$queryId][] = $row;
+				while($row = $res->fetch_assoc()) {
+					$row = array_map(function($v){ 
+						if(is_numeric($v)) return (int)$v;
+						return $v;
+					}, $row);
+				
+					$out[$queryId][] = $row;
+				}
 			}
 		}
 		
